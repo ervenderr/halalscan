@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f9fafb;
+  --foreground: #111827;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Safe area for bottom nav on notched phones */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Prevent overscroll bounce on iOS */
+html {
+  overscroll-behavior: none;
+}
+
+/* Minimum touch target */
+button, a, input, textarea, select {
+  min-height: 44px;
+}
+
+/* Hide html5-qrcode internal UI cruft */
+#barcode-reader video {
+  border-radius: 0.5rem;
+}
+#barcode-reader img[alt="Info icon"] {
+  display: none !important;
+}
+#barcode-reader__header_message {
+  display: none !important;
+}
