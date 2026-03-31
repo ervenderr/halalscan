@@ -93,25 +93,24 @@ async def search_ingredients_batch(
     ingredients: List[str],
     top_k: int = 3,
 ) -> Dict[str, List[Dict]]:
-    """Search all ingredients in parallel with a single batch embedding call."""
+    """Search all ingredients with a single batch embedding call.
+
+    DB searches run sequentially to avoid SQLAlchemy async session
+    concurrency issues (IllegalStateChangeError).
+    """
     if not ingredients:
         return {}
 
-    # 1. Batch embed all ingredients at once
+    # 1. Batch embed all ingredients at once (the expensive part)
     embeddings = await embed_batch(model, ingredients)
 
-    # 2. Run all DB searches in parallel
-    async def _search_one(ingredient: str, embedding: List[float]) -> tuple:
+    # 2. Run DB searches sequentially (session is not safe for concurrent use)
+    results: Dict[str, List[Dict]] = {}
+    for ingredient, embedding in zip(ingredients, embeddings):
         matches = await _search_by_vector(db, embedding, top_k)
-        return (ingredient, matches)
+        results[ingredient] = matches
 
-    tasks = [
-        _search_one(ing, emb)
-        for ing, emb in zip(ingredients, embeddings)
-    ]
-    results = await asyncio.gather(*tasks)
-
-    return dict(results)
+    return results
 
 
 # ---------------------------------------------------------------------------

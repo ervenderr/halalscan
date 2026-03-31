@@ -51,14 +51,6 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -73,6 +65,17 @@ async def log_requests(request: Request, call_next):
         duration,
     )
     return response
+
+
+# CORS must be the LAST middleware added so it wraps everything (including error responses).
+# FastAPI middleware runs in reverse order — last added = outermost = first to process.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 app.include_router(scan.router, prefix="/api")

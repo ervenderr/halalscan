@@ -1,17 +1,19 @@
-import { AppSettings, Madhab, ScanHistoryItem, ClassificationResponse } from "./types";
+import { AppSettings, Madhab, Theme, ScanHistoryItem, ClassificationResponse } from "./types";
 
 const SETTINGS_KEY = "halalchecker_settings";
 const HISTORY_KEY = "halalchecker_history";
 
+const DEFAULT_SETTINGS: AppSettings = { madhab: "hanafi", theme: "system" };
+
 export function getSettings(): AppSettings {
-  if (typeof window === "undefined") return { madhab: "hanafi" };
+  if (typeof window === "undefined") return DEFAULT_SETTINGS;
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
   } catch {
     // ignore parse errors
   }
-  return { madhab: "hanafi" };
+  return DEFAULT_SETTINGS;
 }
 
 export function saveSettings(settings: AppSettings): void {
@@ -20,6 +22,29 @@ export function saveSettings(settings: AppSettings): void {
 
 export function getMadhab(): Madhab {
   return getSettings().madhab;
+}
+
+export function getTheme(): Theme {
+  return getSettings().theme;
+}
+
+export function applyTheme(theme: Theme): void {
+  const root = document.documentElement;
+  if (theme === "system") {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.classList.toggle("dark", prefersDark);
+    root.classList.remove("light-forced");
+  } else {
+    root.classList.toggle("dark", theme === "dark");
+    // When user explicitly picks light, override the CSS media query fallback
+    root.classList.toggle("light-forced", theme === "light");
+  }
+}
+
+export function removeHistoryItem(id: string): void {
+  const history = getHistory();
+  const updated = history.filter((item) => item.id !== id);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
 }
 
 export function getHistory(): ScanHistoryItem[] {

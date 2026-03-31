@@ -28,8 +28,11 @@ export interface ScanHistoryItem {
   created_at: string;
 }
 
+export type Theme = "light" | "dark" | "system";
+
 export interface AppSettings {
   madhab: Madhab;
+  theme: Theme;
 }
 
 export const MADHAB_LABELS: Record<Madhab, string> = {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
+import Image from "next/image";
 
 interface ImageUploadProps {
   onUpload: (imageBase64: string) => void;
@@ -48,11 +49,12 @@ export default function ImageUpload({
   return (
     <div className="space-y-4">
       <div
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          dragActive
-            ? "border-green-400 bg-green-50"
-            : "border-gray-300 hover:border-green-400"
+        className={`glass-card glass-card-lift relative p-6 text-center cursor-pointer transition-all duration-200 ${
+          dragActive ? "ring-2 ring-offset-2" : ""
         }`}
+        style={{
+          borderColor: dragActive ? "var(--color-primary)" : undefined,
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragActive(true);
@@ -62,20 +64,32 @@ export default function ImageUpload({
         onClick={() => inputRef.current?.click()}
       >
         {preview ? (
-          <img
+          <Image
             src={preview}
             alt="Uploaded label"
-            className="max-h-64 mx-auto rounded"
+            width={300}
+            height={256}
+            className="max-h-64 w-auto mx-auto rounded-lg object-contain"
+            unoptimized
           />
         ) : (
-          <div className="flex flex-col items-center gap-3 cursor-pointer">
-            <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-            </svg>
-            <span className="text-gray-600 font-medium">
+          <div className="flex flex-col items-center gap-3.5 py-4">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, #f0fdf4, #dcfce7)",
+                border: "1.5px solid #a7f3d0",
+                boxShadow: "0 4px 12px rgba(22, 163, 74, 0.12)",
+              }}
+            >
+              <svg className="w-8 h-8" style={{ color: "var(--color-primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              </svg>
+            </div>
+            <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
               Upload photo of ingredient list
             </span>
-            <span className="text-gray-400 text-xs">
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               Drag & drop or tap to select
             </span>
           </div>

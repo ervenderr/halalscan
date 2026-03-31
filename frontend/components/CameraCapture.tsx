@@ -18,7 +18,6 @@ export default function CameraCapture({
   const [videoReady, setVideoReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Clean up stream on unmount
   useEffect(() => {
     return () => {
       if (streamRef.current) {
@@ -51,7 +50,6 @@ export default function CameraCapture({
     }
   }, []);
 
-  // Attach stream to video element after it renders
   useEffect(() => {
     const video = videoRef.current;
     if (!isActive || !video || !streamRef.current) return;
@@ -97,7 +95,10 @@ export default function CameraCapture({
   return (
     <div className="space-y-4">
       {error && (
-        <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">
+        <div
+          className="animate-slide-in-top rounded-xl p-3 text-sm"
+          style={{ background: "var(--color-haram-bg)", color: "var(--color-haram)", border: "1px solid var(--color-haram-light)" }}
+        >
           {error}
         </div>
       )}
@@ -106,19 +107,28 @@ export default function CameraCapture({
         <button
           onClick={startCamera}
           disabled={disabled}
-          className="w-full py-12 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center gap-3 hover:border-green-400 hover:bg-green-50 transition-colors disabled:opacity-50"
+          className="glass-card glass-card-lift w-full py-10 flex flex-col items-center gap-3.5 press-scale disabled:opacity-50"
         >
-          <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
-          </svg>
-          <span className="text-gray-600 font-medium">Open Camera</span>
-          <span className="text-gray-400 text-xs">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center"
+            style={{
+              background: "linear-gradient(135deg, #f0fdf4, #dcfce7)",
+              border: "1.5px solid #a7f3d0",
+              boxShadow: "0 4px 12px rgba(22, 163, 74, 0.12)",
+            }}
+          >
+            <svg className="w-8 h-8" style={{ color: "var(--color-primary)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+            </svg>
+          </div>
+          <span className="font-semibold" style={{ color: "var(--text-primary)" }}>Open Camera</span>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
             Point at the ingredient list on the package
           </span>
         </button>
       ) : (
-        <div className="relative bg-black rounded-lg overflow-hidden">
+        <div className="relative rounded-xl overflow-hidden shadow-lg" style={{ background: "#000" }}>
           <video
             ref={videoRef}
             autoPlay
@@ -131,17 +141,17 @@ export default function CameraCapture({
               <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin" />
             </div>
           )}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3">
             <button
               onClick={capture}
               disabled={!videoReady}
-              className="px-6 py-3 bg-green-600 text-white rounded-full font-medium shadow-lg hover:bg-green-700 disabled:opacity-50"
+              className="px-6 py-3 btn-primary rounded-full font-medium press-scale disabled:opacity-50"
             >
               Capture
             </button>
             <button
               onClick={stopCamera}
-              className="px-6 py-3 bg-gray-600 text-white rounded-full font-medium shadow-lg hover:bg-gray-700"
+              className="px-6 py-3 bg-gray-800/70 text-white rounded-full font-medium shadow-lg press-scale"
             >
               Cancel
             </button>

@@ -46,13 +46,21 @@ Classification rules:
 4. If source is ambiguous (could be plant or animal), classify as MUSHBOOH.
 5. Always provide a brief explanation and source reference.
 
+STRICT RULES — DO NOT VIOLATE:
+6. You MUST ONLY classify the exact ingredients provided in the list below. \
+   Do NOT add, invent, or infer any ingredients not explicitly listed.
+7. The "name" field in each ingredient output MUST match the exact ingredient name \
+   from the user's list. Do not rename, rewrite, or embellish ingredient names.
+8. If you are unsure about an ingredient, classify it as MUSHBOOH with \
+   confidence < 0.5. Do NOT guess or fabricate a ruling.
+
 Output JSON format:
 {
   "product_name": "string or null",
   "overall_status": "halal|haram|mushbooh",
   "ingredients": [
     {
-      "name": "ingredient name",
+      "name": "ingredient name (MUST match the user's list exactly)",
       "status": "halal|haram|mushbooh",
       "confidence": 0.0-1.0,
       "explanation": "why this classification under the selected madhab",
@@ -81,9 +89,11 @@ async def classify_ingredients(
     madhab: str,
     model: str = "deepseek-chat",
 ) -> ClassificationResponse:
+    numbered_list = "\n".join(f"  {i+1}. {ing}" for i, ing in enumerate(ingredients))
     user_message = (
         f"Madhab (school of thought): {madhab}\n\n"
-        f"Ingredients to classify:\n{', '.join(ingredients)}\n\n"
+        f"Ingredients to classify (classify ONLY these {len(ingredients)} ingredients, no more, no less):\n"
+        f"{numbered_list}\n\n"
         f"Knowledge base context:\n{context}"
     )
 
@@ -101,7 +111,36 @@ async def classify_ingredients(
 
             raw_json = response.choices[0].message.content
             parsed = json.loads(raw_json)
-            return ClassificationResponse(**parsed)
+            result = ClassificationResponse(**parsed)
+
+            # Post-validation: strip any hallucinated ingredients not in the input
+            input_names = {ing.strip().lower() for ing in ingredients}
+            validated_ingredients = []
+            for ing_result in result.ingredients:
+                if ing_result.name.strip().lower() in input_names:
+                    validated_ingredients.append(ing_result)
+                else:
+                    logger.warning(
+                        "LLM hallucinated ingredient '%s' — not in input list, stripping",
+                        ing_result.name,
+                    )
+
+            # If LLM missed some ingredients, that's acceptable (they'll just not appear)
+            # But make sure we recalculate overall_status from validated list
+            if len(validated_ingredients) != len(result.ingredients):
+                statuses = [r.status for r in validated_ingredients]
+                if "haram" in statuses:
+                    overall = "haram"
+                elif "mushbooh" in statuses:
+                    overall = "mushbooh"
+                else:
+                    overall = "halal"
+                result = result.model_copy(update={
+                    "ingredients": validated_ingredients,
+                    "overall_status": overall,
+                })
+
+            return result
 
         except json.JSONDecodeError as e:
             logger.warning(
@@ -128,6 +167,21 @@ async def classify_ingredients(
     raise ValueError("Classification failed after all retries")
 
 
+IMAGE_EXTRACTION_PROMPT = """\
+Extract the ingredient list from this food label image.
+
+STRICT RULES:
+1. Return ONLY ingredients that you can actually READ in the image text.
+2. Return them as a comma-separated list.
+3. Do NOT include quantities, percentages, or nutritional information.
+4. Do NOT guess or infer ingredients that are blurry or unreadable.
+5. If only some ingredients are readable, return ONLY those you can read.
+6. If you cannot read ANY ingredients at all, respond with exactly: UNREADABLE
+7. Do NOT add common ingredients that you "expect" to see — only return what the image text actually says.
+
+Return ONLY the comma-separated ingredient list, nothing else."""
+
+
 async def extract_ingredients_from_image(
     client: AsyncOpenAI,
     image_base64: str,
@@ -148,12 +202,7 @@ async def extract_ingredients_from_image(
                     },
                     {
                         "type": "text",
-                        "text": (
-                            "Extract the ingredient list from this food label image. "
-                            "Return ONLY the ingredients as a comma-separated list. "
-                            "Do not include quantities, percentages, or nutritional info. "
-                            "If you cannot read the ingredients, respond with 'UNREADABLE'."
-                        ),
+                        "text": IMAGE_EXTRACTION_PROMPT,
                     },
                 ],
             }

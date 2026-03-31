@@ -39,7 +39,14 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom">
+    <nav
+      className="fixed bottom-0 left-0 right-0 glass safe-area-bottom"
+      style={{
+        borderTop: "1.5px solid var(--border-card)",
+        boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.06)",
+      }}
+      aria-label="Main navigation"
+    >
       <div className="max-w-lg mx-auto flex justify-around">
         {NAV_ITEMS.map((item) => {
           const isActive =
@@ -48,14 +55,24 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center py-2 px-4 text-xs transition-colors ${
-                isActive
-                  ? "text-green-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              aria-label={item.label}
+              aria-current={isActive ? "page" : undefined}
+              className="flex flex-col items-center py-2 px-4 text-xs transition-all duration-200 press-scale relative"
+              style={{
+                color: isActive ? "var(--color-primary)" : "var(--text-muted)",
+              }}
             >
-              {item.icon}
-              <span className="mt-1">{item.label}</span>
+              <div className="relative">
+                {item.icon}
+              </div>
+              <span className="mt-1 font-medium">{item.label}</span>
+              {/* Active indicator dot */}
+              {isActive && (
+                <div
+                  className="absolute -bottom-0.5 w-1 h-1 rounded-full"
+                  style={{ background: "var(--color-primary)" }}
+                />
+              )}
             </Link>
           );
         })}

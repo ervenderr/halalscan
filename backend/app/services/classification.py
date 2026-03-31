@@ -62,7 +62,7 @@ def _cache_put(key: str, value: ClassificationResponse) -> None:
 # Direct match — skip LLM for high-confidence DB matches
 # ---------------------------------------------------------------------------
 
-DIRECT_MATCH_THRESHOLD = 0.55
+DIRECT_MATCH_THRESHOLD = 0.70
 
 
 def _get_madhab_ruling(match: dict, madhab: str) -> Optional[str]:

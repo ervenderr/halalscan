@@ -18,6 +18,13 @@ def parse_ingredients(raw_text: str) -> List[str]:
     # Remove percentage values like "10%", "(5%)", etc.
     text = re.sub(r"\(?\d+(\.\d+)?%\)?", "", text)
 
+    # Extract sub-ingredients from parenthetical groups before removing them
+    # e.g., "chocolate (cocoa, sugar, lecithin)" → also get cocoa, sugar, lecithin
+    sub_ingredients = _extract_parenthetical_ingredients(text)
+
+    # Remove parenthetical content to get the top-level ingredients
+    text = re.sub(r"\([^)]*\)", "", text)
+
     # Normalize separators: semicolons and " and " to commas
     text = text.replace(";", ",")
     text = re.sub(r"\band\b", ",", text, flags=re.IGNORECASE)
@@ -26,10 +33,14 @@ def parse_ingredients(raw_text: str) -> List[str]:
     raw_parts = text.split(",")
 
     ingredients = []
-    for part in raw_parts:
-        cleaned = _clean_ingredient(part)
+    seen = set()
+    for part in raw_parts + sub_ingredients:
+        cleaned = _clean_ingredient(part if isinstance(part, str) else part)
         if cleaned:
-            ingredients.append(cleaned)
+            key = cleaned.lower()
+            if key not in seen:
+                seen.add(key)
+                ingredients.append(cleaned)
 
     return ingredients
 
@@ -55,7 +66,7 @@ def _clean_ingredient(text: str) -> str:
     return text.strip()
 
 
-def extract_parenthetical_ingredients(text: str) -> List[str]:
+def _extract_parenthetical_ingredients(text: str) -> List[str]:
     """Extract sub-ingredients from parenthetical groups.
 
     Example: "chocolate (cocoa, sugar, lecithin)" -> ["cocoa", "sugar", "lecithin"]
@@ -63,6 +74,14 @@ def extract_parenthetical_ingredients(text: str) -> List[str]:
     results = []
     groups = re.findall(r"\(([^)]+)\)", text)
     for group in groups:
-        sub_ingredients = parse_ingredients(group)
-        results.extend(sub_ingredients)
+        # Skip if it looks like a percentage or qualifier, not sub-ingredients
+        if re.match(r"^\d", group) or len(group) < 4:
+            continue
+        # Only extract if it contains commas (actual sub-ingredient list)
+        if "," in group:
+            parts = group.split(",")
+            for part in parts:
+                cleaned = _clean_ingredient(part)
+                if cleaned:
+                    results.append(cleaned)
     return results

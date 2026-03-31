@@ -41,12 +41,18 @@ export default function IngredientSearch({
           onChange={(e) => setText(e.target.value)}
           disabled={disabled}
           rows={4}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+          className="w-full px-4 py-3 rounded-xl resize-none transition-all duration-200"
+          style={{
+            background: "var(--bg-input)",
+            border: "1.5px solid var(--border-card)",
+            color: "var(--text-primary)",
+            boxShadow: "var(--shadow-sm)",
+          }}
         />
         <button
           type="submit"
           disabled={disabled || !text.trim()}
-          className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3.5 btn-primary rounded-xl font-medium press-scale disabled:cursor-not-allowed"
         >
           Check Ingredients
         </button>
@@ -54,14 +60,20 @@ export default function IngredientSearch({
 
       {/* Quick check chips */}
       <div>
-        <p className="text-xs text-gray-400 mb-2">Quick check:</p>
+        <p className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Quick check:</p>
         <div className="flex flex-wrap gap-2">
           {quickExamples.map((example) => (
             <button
               key={example}
               onClick={() => onSearch(example)}
               disabled={disabled}
-              className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-full text-sm press-scale disabled:opacity-50 transition-all duration-200 hover:shadow-md"
+              style={{
+                background: "var(--bg-card)",
+                border: "1.5px solid var(--border-card)",
+                color: "var(--text-secondary)",
+                boxShadow: "var(--shadow-sm)",
+              }}
             >
               {example}
             </button>
