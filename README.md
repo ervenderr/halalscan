@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/halalchecker-log.png" alt="HalalChecker AI" width="80" />
+  <img src="frontend/public/halalchecker-log.png" alt="HalalChecker AI" width="80" style="border-radius: 50%;" />
 </p>
 
 <h1 align="center">HalalChecker AI</h1>
@@ -21,9 +21,14 @@
 - **Ingredient search** — Type any ingredient for instant classification
 - **Madhab-aware** — Hanafi, Shafi'i, Maliki, Hanbali with school-specific rulings (seafood, vinegar, rennet, etc.)
 - **RAG pipeline** — 3,300+ seeded ingredients with vector similarity search
+- **Calibrated confidence** — Deterministic scoring (DB exact match = 0.95, LLM-only capped at 0.60)
 - **Anti-hallucination** — Post-validation strips any LLM-invented ingredients not in the input
 - **Fast responses** — Direct DB match for known ingredients (~100ms), LLM fallback for unknown (~5-8s)
 - **Response caching** — Repeat queries return instantly (~9ms)
+- **Product comparison** — Side-by-side halal comparison of two products with ingredient diff
+- **Share results** — Generate branded PNG card and share via Web Share API or download
+- **Feedback system** — Report incorrect classifications to improve accuracy over time
+- **Onboarding** — 3-step first-visit wizard (welcome, madhab selection, scan guide)
 - **Dark mode** — System-aware with manual light/dark/system toggle
 - **PWA ready** — Installable on mobile with offline shell support
 
@@ -33,7 +38,7 @@
 ┌──────────────────────────────────────────────────────┐
 │              FRONTEND (Next.js 16 + PWA)              │
 │  Camera → Tesseract.js OCR → Barcode → Text Search   │
-│  Tailwind CSS · Dark Mode · localStorage History      │
+│  Tailwind CSS 4 · Dark Mode · Compare · Share         │
 └────────────────────┬─────────────────────────────────┘
                      │ REST API
 ┌────────────────────▼─────────────────────────────────┐
@@ -41,6 +46,7 @@
 │                                                       │
 │  POST /api/scan/text    (ingredients → classify)      │
 │  POST /api/barcode      (Open Food Facts → classify)  │
+│  POST /api/feedback     (user corrections)            │
 │                                                       │
 │  ┌───────────────────────────────────┐                │
 │  │     CLASSIFICATION PIPELINE       │                │
@@ -48,15 +54,16 @@
 │  │  2. Batch embed (MiniLM-L6-v2)   │                │
 │  │  3. pgvector cosine search        │                │
 │  │  4. Direct match (>0.70 sim)?     │                │
-│  │     → Instant DB response         │                │
+│  │     → Calibrated DB response      │                │
 │  │     OR                            │                │
 │  │  5. DeepSeek LLM + RAG context    │                │
-│  │     → Validated JSON response     │                │
+│  │     → Validated + calibrated JSON │                │
 │  └───────────────────────────────────┘                │
 │                                                       │
 │  Database: PostgreSQL + pgvector (HNSW index)         │
 │  • 3,317 ingredients with embeddings + rulings        │
 │  • Madhab-specific rulings (4 schools)                │
+│  • User feedback table for corrections                │
 └───────────────────────────────────────────────────────┘
 ```
 
@@ -118,6 +125,7 @@ Open http://localhost:3000.
 |--------|----------|-------------|
 | POST | `/api/scan/text` | Classify ingredients from text |
 | POST | `/api/barcode` | Look up barcode and classify |
+| POST | `/api/feedback` | Submit ingredient correction |
 | GET | `/api/health` | Health check |
 
 ### Environment Variables

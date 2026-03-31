@@ -76,6 +76,21 @@ class ScanHistory(Base):
     )
 
 
+class IngredientFeedback(Base):
+    __tablename__ = "ingredient_feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ingredient_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    feedback_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    reported_status: Mapped[Optional[str]] = mapped_column(String(20))
+    note: Mapped[Optional[str]] = mapped_column(Text)
+    original_status: Mapped[str] = mapped_column(String(20), nullable=False)
+    madhab: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         try:

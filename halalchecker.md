@@ -16,15 +16,19 @@ A progressive web app (PWA, mobile-first) that lets users:
 4. **Explain** the reasoning with sourced Islamic rulings
 5. **Barcode lookup** via Open Food Facts API (4M+ products)
 6. **Madhab selection** — Hanafi, Shafi'i, Maliki, Hanbali (different rulings on seafood, vinegar, rennet, etc.)
+7. **Compare products** — Side-by-side halal comparison of two products
+8. **Share results** — Generate branded PNG card for sharing via WhatsApp/Telegram
+9. **Report corrections** — Users can flag incorrect classifications
 
 ### Technologies Demonstrated
 - **OCR / Computer Vision** — Tesseract.js client-side text extraction
 - **RAG Pipeline** — Batch embeddings + pgvector cosine search + LLM reasoning
-- **LLM Integration** — DeepSeek API for classification with anti-hallucination validation
+- **LLM Integration** — DeepSeek API for classification with anti-hallucination validation + calibrated confidence
 - **Full-Stack** — Next.js 16 frontend + FastAPI backend
-- **Database** — PostgreSQL with pgvector (HNSW index, 3,317 ingredients)
+- **Database** — PostgreSQL with pgvector (HNSW index, 3,317 ingredients) + feedback table
 - **API Integration** — Open Food Facts barcode lookup
-- **PWA / Mobile-first** — Camera API, dark mode, offline shell
+- **Canvas API** — Dynamic image generation for share cards
+- **PWA / Mobile-first** — Camera API, dark mode, onboarding flow, offline shell
 
 ---
 
@@ -147,7 +151,9 @@ Input: raw ingredient text + madhab
   │    top 3 matches per ingredient
   │
   ├─ 4. DIRECT MATCH? (all similarities > 0.70)
-  │    YES → build response from DB rulings, cache, return
+  │    YES → build response from DB rulings
+  │    CALIBRATE confidence (exact=0.95, high>0.85=as-is, moderate=sim*0.9)
+  │    cache, return
   │    NO  → continue to step 5
   │
   ├─ 5. LLM CLASSIFICATION
@@ -155,6 +161,7 @@ Input: raw ingredient text + madhab
   │    send to DeepSeek with system prompt + ingredients + context
   │    parse JSON response
   │    POST-VALIDATE: strip hallucinated ingredients
+  │    CALIBRATE confidence (LLM-only capped at 0.60, unknown=0.30)
   │    recalculate overall_status if needed
   │    cache result
   │
@@ -191,24 +198,30 @@ halalscan/
 │   ├── app/
 │   │   ├── layout.tsx               # Root layout, theme, metadata
 │   │   ├── globals.css              # Design tokens, dark mode, animations
-│   │   ├── page.tsx                 # Home — camera/upload/barcode/search
+│   │   ├── page.tsx                 # Home — camera/upload/barcode/search + onboarding
 │   │   ├── history/page.tsx         # Scan history (grouped by date)
+│   │   ├── compare/page.tsx         # Side-by-side product comparison
 │   │   └── settings/page.tsx        # Madhab + theme selection
 │   ├── components/
-│   │   ├── BottomNav.tsx            # Frosted glass navigation
+│   │   ├── BottomNav.tsx            # Frosted glass navigation (4 items)
 │   │   ├── CameraCapture.tsx        # Camera with capture overlay
 │   │   ├── ImageUpload.tsx          # Drag & drop upload
 │   │   ├── BarcodeScanner.tsx       # Camera + manual barcode entry
 │   │   ├── IngredientSearch.tsx     # Text input + quick-check chips
-│   │   ├── ScanResult.tsx           # Status-themed result display
-│   │   ├── IngredientCard.tsx       # Expandable card with confidence bar
+│   │   ├── ScanResult.tsx           # Status-themed result display + share
+│   │   ├── IngredientCard.tsx       # Expandable card + feedback report
 │   │   ├── StatusBadge.tsx          # Halal/Haram/Mushbooh with icons
 │   │   ├── LoadingSpinner.tsx       # Scanning animation + skeleton
-│   │   └── ThemeInit.tsx            # Dark mode initialization
+│   │   ├── ThemeInit.tsx            # Dark mode initialization
+│   │   ├── Onboarding.tsx           # 3-step first-visit wizard
+│   │   ├── FeedbackModal.tsx        # Report incorrect classification
+│   │   ├── ProductSlot.tsx          # Product card for comparison
+│   │   └── ComparisonView.tsx       # Side-by-side comparison display
 │   ├── lib/
 │   │   ├── api.ts                   # Backend API client
 │   │   ├── ocr.ts                   # Tesseract.js wrapper
-│   │   ├── storage.ts              # localStorage (settings, history, theme)
+│   │   ├── shareCard.ts             # Canvas card generation + Web Share API
+│   │   ├── storage.ts              # localStorage (settings, history, theme, onboarding)
 │   │   └── types.ts                 # TypeScript interfaces
 │   └── public/
 │       ├── halalchecker-log.png     # App logo
@@ -221,16 +234,17 @@ halalscan/
 │   │   ├── routers/
 │   │   │   ├── scan.py              # POST /api/scan/text
 │   │   │   ├── barcode.py           # POST /api/barcode
+│   │   │   ├── feedback.py          # POST /api/feedback
 │   │   │   └── history.py           # Scan history endpoints
 │   │   ├── services/
-│   │   │   ├── classification.py    # Pipeline orchestrator + cache + direct match
+│   │   │   ├── classification.py    # Pipeline orchestrator + cache + calibration
 │   │   │   ├── ingredient_parser.py # Text → ingredient list (+ parenthetical)
 │   │   │   ├── rag_service.py       # Batch embed + pgvector search + context
 │   │   │   ├── llm_service.py       # DeepSeek classification + validation
 │   │   │   └── barcode_service.py   # Open Food Facts API
 │   │   ├── models/
-│   │   │   ├── schemas.py           # Pydantic models
-│   │   │   └── database.py          # SQLAlchemy + pgvector + session
+│   │   │   ├── schemas.py           # Pydantic models (+ feedback schemas)
+│   │   │   └── database.py          # SQLAlchemy + pgvector + feedback table
 │   │   └── data/
 │   │       ├── ingredients.json     # 3,317 ingredient entries
 │   │       └── seed_knowledge.py    # DB seeder with embeddings
@@ -275,7 +289,78 @@ halalscan/
 
 ---
 
-## 10. Barcode Fallback UX
+## 10. Confidence Calibration
+
+LLM-generated confidence scores are unreliable. The system uses deterministic calibration:
+
+| Source | Condition | Confidence |
+|--------|-----------|------------|
+| DB exact name match | `name.lower() == ingredient.lower()` | 0.95 |
+| DB high similarity | similarity > 0.85 | similarity (as-is) |
+| DB moderate similarity | 0.70-0.85 | similarity * 0.9 |
+| LLM-only (no good DB match) | best match < 0.70 | capped at 0.60 |
+| Unknown (no DB match at all) | no matches returned | 0.30 |
+
+Applied in two places:
+- `_try_direct_match()` — calibrates DB-only responses
+- `_calibrate_llm_confidence()` — post-processes LLM responses before caching
+
+---
+
+## 11. Onboarding Flow
+
+3-step first-visit wizard shown before the scan UI:
+1. **Welcome** — Logo, app description, "Get Started" button
+2. **Choose Madhab** — Radio card selector (same pattern as Settings), saves to localStorage
+3. **How to Scan** — Three scan methods with icons (camera, barcode, search)
+
+- Skip button always available
+- Stores `halalchecker_onboarding = "true"` in localStorage
+- Never shown again after completion or skip
+
+---
+
+## 12. Feedback/Corrections System
+
+Users can report incorrect classifications on any ingredient:
+- "Report incorrect" button in each expanded IngredientCard
+- FeedbackModal with feedback type (wrong status / wrong explanation / other)
+- Optional status correction (halal/haram/mushbooh)
+- Optional free-text note (500 char max)
+- Backend `POST /api/feedback` stores in `ingredient_feedback` table
+- Rate limited to 10/min to prevent spam
+
+---
+
+## 13. Share Results as Image
+
+Generates a branded PNG card using the HTML Canvas API:
+- Logo + "HalalChecker AI" header
+- Product name + large status circle with animated icon
+- Ingredient count stats (X Halal, Y Haram, Z Mushbooh)
+- Up to 6 ingredients with status dots
+- Madhab used + footer branding
+
+Sharing:
+- Mobile: Web Share API (`navigator.share({ files: [...] })`)
+- Desktop fallback: PNG download via temporary `<a>` element
+
+---
+
+## 14. Multi-Product Comparison
+
+New `/compare` page for side-by-side halal comparison:
+- Two ProductSlot components (empty or filled from scan history)
+- History selection overlay modal
+- ComparisonView with:
+  - Winner indicator (which product is "more halal")
+  - Status badges side by side
+  - Stats grid (halal/haram/mushbooh count for each)
+  - Ingredient diff — highlights shared ingredients with different statuses
+
+---
+
+## 15. Barcode Fallback UX
 
 When a barcode scan finds a product but no ingredient data:
 1. Auto-switch to the **Ingredients tab**
@@ -285,7 +370,7 @@ When a barcode scan finds a product but no ingredient data:
 
 ---
 
-## 11. Cost Estimate (Monthly, Production)
+## 16. Cost Estimate (Monthly, Production)
 
 | Service | Cost |
 |---------|------|
@@ -296,22 +381,27 @@ When a barcode scan finds a product but no ingredient data:
 
 ---
 
-## 12. Demo Scenarios
+## 17. Demo Scenarios
 
 1. **Scan a Gummy Bear package** → Detects gelatin (HARAM — pork-derived)
 2. **Scan a chocolate bar** → Detects E471 (MUSHBOOH — source unknown)
 3. **Barcode scan of Nutella** → Pulls from Open Food Facts, classifies
 4. **Switch Hanafi → Shafi'i** → Shows different rulings on shrimp, vinegar
-5. **Scan a clearly halal product** → All green with confidence bars
+5. **Scan a clearly halal product** → All green with calibrated confidence bars
 6. **Toggle dark mode** → Entire UI adapts with forest-green dark palette
+7. **Compare two products** → Side-by-side with winner indicator and ingredient diff
+8. **Share result** → Branded PNG card shared to WhatsApp
+9. **Report incorrect** → Flag a wrong classification on an ingredient
+10. **First-time visit** → Onboarding wizard guides through madhab selection
 
 ---
 
-## 13. Future Enhancements
+## 18. Future Enhancements
 
 - React Native / Expo mobile app
-- Community-sourced corrections (users report wrong classifications)
-- Offline mode with local model (ONNX-quantized classifier)
+- Offline ingredient database (IndexedDB cache of top 500 ingredients)
 - Multi-language OCR (Arabic, Malay, Indonesian labels)
 - Halal restaurant/store finder integration
 - Browser extension for online grocery shopping
+- Admin dashboard (analytics: most-scanned ingredients, feedback review)
+- CI/CD pipeline with GitHub Actions (lint + typecheck + test)

@@ -9,9 +9,10 @@ import BarcodeScanner from "@/components/BarcodeScanner";
 import IngredientSearch from "@/components/IngredientSearch";
 import ScanResult from "@/components/ScanResult";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import Onboarding from "@/components/Onboarding";
 import { scanText, scanBarcode } from "@/lib/api";
 import { extractTextFromImage, isConfident } from "@/lib/ocr";
-import { getMadhab, addToHistory } from "@/lib/storage";
+import { getMadhab, addToHistory, isOnboardingComplete } from "@/lib/storage";
 import { ClassificationResponse, MADHAB_LABELS } from "@/lib/types";
 
 type Tab = "scan" | "barcode" | "search";
@@ -58,9 +59,11 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [barcodeFallback, setBarcodeFallback] = useState<string | null>(null);
   const [currentMadhab, setCurrentMadhab] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     setCurrentMadhab(getMadhab());
+    if (!isOnboardingComplete()) setShowOnboarding(true);
   }, []);
 
   const handleImageScan = useCallback(async (imageBase64: string) => {
@@ -176,6 +179,17 @@ export default function HomePage() {
     setBarcodeFallback(null);
   }, []);
 
+  if (showOnboarding) {
+    return (
+      <Onboarding
+        onComplete={() => {
+          setShowOnboarding(false);
+          setCurrentMadhab(getMadhab());
+        }}
+      />
+    );
+  }
+
   if (result) {
     return <ScanResult result={result} onScanAnother={resetScan} />;
   }
@@ -193,6 +207,7 @@ export default function HomePage() {
             width={44}
             height={44}
             className="drop-shadow-md"
+            style={{ borderRadius: "50%", objectFit: "cover" }}
             priority
           />
           <h1 className="text-2xl font-bold gradient-text">HalalChecker AI</h1>

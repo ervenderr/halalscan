@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { ClassificationResponse, Status } from "@/lib/types";
+import { getMadhab } from "@/lib/storage";
+import { generateShareImage, shareOrDownload } from "@/lib/shareCard";
 import IngredientCard from "./IngredientCard";
 import StatusBadge from "./StatusBadge";
 
@@ -65,6 +68,19 @@ const STATUS_RING_COLORS: Record<Status, string> = {
 
 export default function ScanResult({ result, onScanAnother }: ScanResultProps) {
   const hero = STATUS_HERO[result.overall_status];
+  const [sharing, setSharing] = useState(false);
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const blob = await generateShareImage(result, getMadhab());
+      await shareOrDownload(blob, result.product_name);
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setSharing(false);
+    }
+  };
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -120,12 +136,32 @@ export default function ScanResult({ result, onScanAnother }: ScanResultProps) {
       </div>
 
       {/* Actions */}
-      <button
-        onClick={onScanAnother}
-        className="w-full py-3.5 btn-primary rounded-xl font-medium press-scale"
-      >
-        Scan Another Product
-      </button>
+      <div className="flex gap-3">
+        <button
+          onClick={onScanAnother}
+          className="flex-1 py-3.5 btn-primary rounded-xl font-medium press-scale"
+        >
+          Scan Another
+        </button>
+        <button
+          onClick={handleShare}
+          disabled={sharing}
+          className="py-3.5 px-5 rounded-xl font-medium press-scale transition-colors disabled:opacity-50"
+          style={{
+            background: "var(--bg-muted)",
+            border: "1.5px solid var(--border-card)",
+            color: "var(--text-secondary)",
+          }}
+        >
+          {sharing ? (
+            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+            </svg>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

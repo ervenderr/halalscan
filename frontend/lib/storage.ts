@@ -2,6 +2,7 @@ import { AppSettings, Madhab, Theme, ScanHistoryItem, ClassificationResponse } f
 
 const SETTINGS_KEY = "halalchecker_settings";
 const HISTORY_KEY = "halalchecker_history";
+const ONBOARDING_KEY = "halalchecker_onboarding";
 
 const DEFAULT_SETTINGS: AppSettings = { madhab: "hanafi", theme: "system" };
 
@@ -39,6 +40,15 @@ export function applyTheme(theme: Theme): void {
     // When user explicitly picks light, override the CSS media query fallback
     root.classList.toggle("light-forced", theme === "light");
   }
+}
+
+export function isOnboardingComplete(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(ONBOARDING_KEY) === "true";
+}
+
+export function setOnboardingComplete(): void {
+  localStorage.setItem(ONBOARDING_KEY, "true");
 }
 
 export function removeHistoryItem(id: string): void {

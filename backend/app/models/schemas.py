@@ -52,5 +52,19 @@ class ScanHistoryItem(BaseModel):
     created_at: datetime
 
 
+class FeedbackRequest(BaseModel):
+    ingredient_name: str = Field(min_length=1, max_length=255)
+    feedback_type: Literal["wrong_status", "wrong_explanation", "other"]
+    reported_status: Optional[Status] = None
+    note: Optional[str] = Field(None, max_length=500)
+    original_status: Status
+    madhab: Madhab
+
+
+class FeedbackResponse(BaseModel):
+    success: bool
+    message: str
+
+
 class ErrorResponse(BaseModel):
     detail: str

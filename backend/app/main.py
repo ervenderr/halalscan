@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.config import settings
-from app.routers import barcode, history, scan
+from app.routers import barcode, feedback, history, scan
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -81,6 +81,7 @@ app.add_middleware(
 app.include_router(scan.router, prefix="/api")
 app.include_router(barcode.router, prefix="/api")
 app.include_router(history.router, prefix="/api")
+app.include_router(feedback.router, prefix="/api")
 
 
 @app.get("/api/health")

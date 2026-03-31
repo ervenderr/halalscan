@@ -59,6 +59,20 @@ export async function scanBarcode(
   });
 }
 
+export async function submitFeedback(data: {
+  ingredient_name: string;
+  feedback_type: "wrong_status" | "wrong_explanation" | "other";
+  reported_status?: string;
+  note?: string;
+  original_status: string;
+  madhab: string;
+}): Promise<{ success: boolean; message: string }> {
+  return request("/api/feedback", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function checkHealth(): Promise<boolean> {
   try {
     await request("/api/health");

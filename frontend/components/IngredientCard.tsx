@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { IngredientResult, Status } from "@/lib/types";
 import StatusBadge from "./StatusBadge";
+import FeedbackModal from "./FeedbackModal";
 
 interface IngredientCardProps {
   ingredient: IngredientResult;
@@ -22,6 +23,7 @@ const BAR_COLORS: Record<Status, string> = {
 
 export default function IngredientCard({ ingredient }: IngredientCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const confidence = Math.round(ingredient.confidence * 100);
 
   return (
@@ -119,9 +121,22 @@ export default function IngredientCard({ ingredient }: IngredientCardProps) {
                 Source: {ingredient.source_reference}
               </p>
             )}
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowFeedback(true); }}
+              className="flex items-center gap-1 text-xs font-medium press-scale pt-1"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
+              </svg>
+              Report incorrect
+            </button>
           </div>
         </div>
       </div>
+      {showFeedback && (
+        <FeedbackModal ingredient={ingredient} onClose={() => setShowFeedback(false)} />
+      )}
     </div>
   );
 }

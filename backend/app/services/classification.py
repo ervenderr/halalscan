@@ -65,6 +65,46 @@ def _cache_put(key: str, value: ClassificationResponse) -> None:
 DIRECT_MATCH_THRESHOLD = 0.70
 
 
+def _calibrate_confidence(is_exact: bool, similarity: float) -> float:
+    """Deterministic confidence calibration based on match quality."""
+    if is_exact:
+        return 0.95
+    if similarity > 0.85:
+        return round(similarity, 4)
+    if similarity >= 0.70:
+        return round(similarity * 0.9, 4)
+    return 0.30
+
+
+def _calibrate_llm_confidence(
+    result: ClassificationResponse,
+    ingredient_matches: Dict[str, List[dict]],
+) -> ClassificationResponse:
+    """Replace LLM-generated confidence with calibrated scores from DB matches."""
+    calibrated = []
+    match_lookup = {k.strip().lower(): v for k, v in ingredient_matches.items()}
+
+    for ing in result.ingredients:
+        matches = match_lookup.get(ing.name.strip().lower(), [])
+        if not matches:
+            confidence = 0.30
+        else:
+            top = matches[0]
+            is_exact = top["ingredient_name"].lower() == ing.name.strip().lower()
+            sim = top["similarity"]
+            if is_exact:
+                confidence = 0.95
+            elif sim > 0.85:
+                confidence = round(sim, 4)
+            elif sim >= 0.70:
+                confidence = round(sim * 0.9, 4)
+            else:
+                confidence = min(ing.confidence, 0.60)
+        calibrated.append(ing.model_copy(update={"confidence": confidence}))
+
+    return result.model_copy(update={"ingredients": calibrated})
+
+
 def _get_madhab_ruling(match: dict, madhab: str) -> Optional[str]:
     return match.get(f"ruling_{madhab}")
 
@@ -134,7 +174,7 @@ def _try_direct_match(
         results.append(IngredientResult(
             name=ingredient,
             status=status,
-            confidence=top["similarity"],
+            confidence=_calibrate_confidence(is_exact, top["similarity"]),
             explanation=ruling or top["explanation"],
             e_number=top["e_number"],
             source_reference=top["source_reference"],
@@ -243,6 +283,7 @@ async def classify_from_ingredients(
         model=llm_model,
     )
 
+    result = _calibrate_llm_confidence(result, ingredient_matches)
     _cache_put(key, result)
     return result
 
